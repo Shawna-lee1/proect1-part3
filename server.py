@@ -1,28 +1,15 @@
 import os
 import sys
 import socket
-import threading
+import multiprocessing
 import signal
-import time
-
-# Global variables to track connection count and file directory
-connection_count = 0
-file_dir = ""
-
-# Lock to ensure synchronized access to connection_count
-connection_lock = threading.Lock()
 
 # Function to handle each client connection
-def handle_connection(client_socket, connection_id):
-    global file_dir
-    
+def handle_connection(client_socket, connection_id, file_dir):
     # Create a file path for the current connection
     file_path = os.path.join(file_dir, f"{connection_id}.file")
     
     try:
-        # Set a timeout for the connection
-        client_socket.settimeout(10)
-        
         # Send the "accio" command to the client
         client_socket.send(b"accio\r\n")
         
@@ -52,19 +39,13 @@ def handle_connection(client_socket, connection_id):
         # Close the client socket
         client_socket.close()
 
-        # Release the lock to allow another thread to increment the count
-        with connection_lock:
-            connection_count -= 1
-
 # Function to gracefully handle signals
-def signal_handler(signal, frame):
+def signal_handler(signum, frame):
     print("Received signal, exiting gracefully...")
     sys.exit(0)
 
 # Main function
 def main():
-    global connection_count, file_dir
-    
     # Check command-line arguments
     if len(sys.argv) != 3:
         sys.stderr.write("ERROR: Usage: python3 server.py <PORT> <FILE-DIR>\n")
@@ -96,26 +77,30 @@ def main():
     print(f"Server is listening on port {port}")
     
     try:
+        # Use multiprocessing to handle multiple connections simultaneously
+        processes = []
         while True:
             # Accept a new connection
             client_socket, addr = server_socket.accept()
             
-            # Increment the connection count
-            with connection_lock:
-                connection_count += 1
-            
-            # Start a new thread to handle the connection
-            t = threading.Thread(target=handle_connection, args=(client_socket, connection_count))
-            t.start()
+            # Create a new process to handle the connection
+            connection_id = len(processes) + 1
+            p = multiprocessing.Process(target=handle_connection, args=(client_socket, connection_id, file_dir))
+            p.start()
+            processes.append(p)
     
     except KeyboardInterrupt:
         print("Server terminated by user.")
     
     finally:
+        # Close the server socket and wait for all processes to finish
         server_socket.close()
+        for p in processes:
+            p.join()
 
 if __name__ == "__main__":
     main()
+
 
 
 
