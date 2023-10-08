@@ -1,7 +1,7 @@
 import socket
 
 # Define the server's host and port
-server_host = 'localhost'
+server_host = 'localhost'  # Change to the actual server IP if needed
 server_port = 12345
 
 # Create a socket object
