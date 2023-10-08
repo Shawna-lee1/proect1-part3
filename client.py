@@ -1,47 +1,97 @@
 import socket
 import sys
 
-# Define the server's host and port
-server_host = 'localhost'  # Change to the actual server IP if needed
-server_port = 12345
+# Function to receive commands from the server with timeout
+def receive_commands(client_socket):
+    b = b""
+    
+    while True:
+        # Breaks loop once complete data is received
+        if b.endswith(b"\r\n"):
+            break
+        try:
+            chunk = client_socket.recv(1024)
+        except socket.timeout:
+            sys.stderr.write("ERROR: Timeout waiting for commands from the server.\n")
+            client_socket.close()
+            sys.exit(1)
 
-# Define the file to send (change as needed)
-file_to_send = "sample.txt"
+        b = b + chunk
 
-def send_file_data(client_socket):
+# Function to send file to server using chunks
+def send_file(client_socket, FILENAME):
     try:
-        with open(file_to_send, "rb") as file:
-            while True:
-                data = file.read(4096)
-                if not data:
-                    break
-                client_socket.send(data)
+        file = open(FILENAME, "rb")
+        while True:
+            chunk = file.read(10000)
+            if not chunk:
+                break
+            client_socket.send(chunk)
+        file.close()
+    except FileNotFoundError:
+        sys.stderr.write(f"ERROR: File '{FILENAME}' not found.\n")
+        client_socket.close()
+        sys.exit(1)
     except Exception as e:
-        print(f"Error sending file data: {e}")
+        sys.stderr.write(f"ERROR: {str(e)}\n")
+        client_socket.close()
+        sys.exit(1)
 
-# Create a socket object
+# Configuration
+HOST = sys.argv[1]  # Get the server hostname or IP from command-line arguments
+
+# Check if the provided port is within the valid range (0-65535)
+try:
+    PORT = int(sys.argv[2])  # Get the server port from command-line arguments
+    if not (0 <= PORT <= 65535):
+        raise ValueError("Invalid port number")
+except ValueError as e:
+    sys.stderr.write(f"ERROR: {str(e)}. Port must be between 0 and 65535.\n")
+    sys.exit(1)
+
+FILENAME = sys.argv[3]  # Get the filename to transfer from command-line arguments
+TIMEOUT = 10  # Timeout for various operations in seconds
+
+# Create a socket and set a timeout for connecting to the server
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.settimeout(TIMEOUT)
 
 try:
-    # Connect to the server
-    client_socket.connect((server_host, server_port))
-
-    # Receive the welcome message from the server
-    welcome_message = client_socket.recv(1024)
-    print(welcome_message.decode())
-
-    # Send the file data to the server
-    send_file_data(client_socket)
-
-    # Close the client socket
+    client_socket.connect((HOST, PORT))
+except (socket.error, ConnectionRefusedError) as e:
+    sys.stderr.write(f"ERROR: Connection to {HOST}:{PORT} failed. {str(e)}\n")
     client_socket.close()
+    sys.exit(1)
 
-except ConnectionRefusedError:
-    print("ERROR: Server is not running or refused the connection.")
-except FileNotFoundError:
-    print(f"ERROR: File '{file_to_send}' not found.")
-except KeyboardInterrupt:
-    print("Client terminated by user.")
-except Exception as e:
-    print(f"Error: {e}")
+# Receive commands from the server
+receive_commands(client_socket)
+
+# Send the first header: "confirm-accio\r\n"
+try:
+    client_socket.send(b"confirm-accio\r\n")
+except socket.timeout:
+    sys.stderr.write("ERROR: Timeout sending commands to the server.\n")
+    client_socket.close()
+    sys.exit(1)
+    
+# Receive commands from the server
+receive_commands(client_socket)
+
+# Send the second header: "confirm-accio-again\r\n\r\n"
+try:
+    client_socket.send(b"confirm-accio-again\r\n\r\n")
+except socket.timeout:
+    sys.stderr.write("ERROR: Timeout sending commands to the server.\n")
+    client_socket.close()
+    sys.exit(1)
+    
+# Send the file to the server using chunks
+send_file(client_socket, FILENAME)
+
+# Close the connection
+client_socket.close()
+
+# Exit with a success code
+sys.exit(0)
+
 
