@@ -30,7 +30,7 @@ def handle_connection(client_socket, connection_id):
         for _ in range(2):
             client_socket.send(b"accio\r\n")
         
-        # Open the file for writing in binary mode
+        # Open the file for writing in binary mode (outside the loop)
         with open(file_path, "wb") as file:
             while True:
                 data = client_socket.recv(4096)
@@ -39,7 +39,8 @@ def handle_connection(client_socket, connection_id):
                 
                 # Write the received data to the file
                 file.write(data.strip())
-                
+        
+        # Print connection received and saved after the loop
         print(f"Connection {connection_id} received and saved.")
     
     except socket.timeout:
@@ -56,15 +57,12 @@ def handle_connection(client_socket, connection_id):
         # Close the client socket
         client_socket.close()
 
-        # Release the lock to allow another thread to increment the count
-        with connection_lock:
-            connection_count -= 1
-
 # Function to gracefully handle signals
 def signal_handler(signal, frame):
     global notStopped
     print("Received signal, exiting gracefully...")
     notStopped = False
+    sys.exit(0)  # Exit with status code 0
 
 # Main function
 def main():
