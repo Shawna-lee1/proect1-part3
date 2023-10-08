@@ -1,4 +1,4 @@
-import os
+ import os
 import sys
 import socket
 import threading
@@ -12,9 +12,6 @@ file_dir = ""
 # Lock to ensure synchronized access to connection_count
 connection_lock = threading.Lock()
 
-# Global variable to control the connection loop
-notStopped = True
-
 # Function to handle each client connection
 def handle_connection(client_socket, connection_id):
     global file_dir
@@ -26,9 +23,8 @@ def handle_connection(client_socket, connection_id):
         # Set a timeout for the connection
         client_socket.settimeout(10)
         
-        # Send the "accio" command to the client twice
-        for _ in range(2):
-            client_socket.send(b"accio\r\n")
+        # Send the "accio" command to the client
+        client_socket.send(b"accio\r\n")
         
         # Open the file for writing in binary mode
         with open(file_path, "wb") as file:
@@ -38,7 +34,7 @@ def handle_connection(client_socket, connection_id):
                     break
                 
                 # Write the received data to the file
-                file.write(data.strip())
+                file.write(data)
                 
         print(f"Connection {connection_id} received and saved.")
     
@@ -62,13 +58,12 @@ def handle_connection(client_socket, connection_id):
 
 # Function to gracefully handle signals
 def signal_handler(signal, frame):
-    global notStopped
     print("Received signal, exiting gracefully...")
-    notStopped = False
+    sys.exit(0)
 
 # Main function
 def main():
-    global connection_count, file_dir, notStopped
+    global connection_count, file_dir
     
     # Check command-line arguments
     if len(sys.argv) != 3:
@@ -101,7 +96,7 @@ def main():
     print(f"Server is listening on port {port}")
     
     try:
-        while notStopped:
+        while True:
             # Accept a new connection
             client_socket, addr = server_socket.accept()
             
@@ -116,19 +111,11 @@ def main():
     except KeyboardInterrupt:
         print("Server terminated by user.")
     
-  finally:
-        # Close the server socket
+    finally:
         server_socket.close()
 
-        # Wait for all threads to finish before exiting
-        for thread in threading.enumerate():
-            if thread != threading.current_thread():
-                thread.join()
-
-        print("Server has exited gracefully.")
-
 if __name__ == "__main__":
-    main()
+    main()  
 
 
 
