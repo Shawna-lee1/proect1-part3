@@ -71,6 +71,12 @@ def main():
         sys.exit(1)
     
     port = int(sys.argv[1])
+    
+    # Check if the port is within the valid range
+    if not (0 <= port <= 65535):
+        sys.stderr.write("ERROR: Port must be in the range 0-65535.\n")
+        sys.exit(1)
+    
     file_dir = sys.argv[2]
     
     # Validate the FILE-DIR path
@@ -110,4 +116,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
