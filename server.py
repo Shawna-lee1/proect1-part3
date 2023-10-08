@@ -12,6 +12,9 @@ file_dir = ""
 # Lock to ensure synchronized access to connection_count
 connection_lock = threading.Lock()
 
+# List to track active threads
+active_threads = []
+
 # Function to handle each client connection
 def handle_connection(client_socket, connection_id):
     global file_dir
@@ -56,6 +59,9 @@ def handle_connection(client_socket, connection_id):
         with connection_lock:
             connection_count -= 1
 
+        # Remove this thread from the active_threads list
+        active_threads.remove(threading.current_thread())
+
 # Function to gracefully handle signals
 def signal_handler(signal, frame):
     print("Received signal, exiting gracefully...")
@@ -63,7 +69,7 @@ def signal_handler(signal, frame):
 
 # Main function
 def main():
-    global connection_count, file_dir
+    global connection_count, file_dir, active_threads
     
     # Check command-line arguments
     if len(sys.argv) != 3:
@@ -107,6 +113,13 @@ def main():
             # Start a new thread to handle the connection
             t = threading.Thread(target=handle_connection, args=(client_socket, connection_count))
             t.start()
+            
+            # Add the thread to the active_threads list
+            active_threads.append(t)
+            
+            # Wait for the active_threads list to have 10 or fewer threads
+            while len(active_threads) >= 10:
+                time.sleep(0.1)
     
     except KeyboardInterrupt:
         print("Server terminated by user.")
@@ -116,5 +129,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
