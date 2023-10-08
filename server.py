@@ -116,10 +116,6 @@ def main():
             
             # Add the thread to the active_threads list
             active_threads.append(t)
-            
-            # Wait for the active_threads list to have 10 or fewer threads
-            while len(active_threads) >= 10:
-                time.sleep(0.1)
     
     except KeyboardInterrupt:
         print("Server terminated by user.")
@@ -129,6 +125,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
