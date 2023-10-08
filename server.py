@@ -9,6 +9,9 @@ import time
 connection_count = 0
 file_dir = ""
 
+# Lock to ensure synchronized access to connection_count
+connection_lock = threading.Lock()
+
 # Function to handle each client connection
 def handle_connection(client_socket, connection_id):
     global file_dir
@@ -49,6 +52,10 @@ def handle_connection(client_socket, connection_id):
         # Close the client socket
         client_socket.close()
 
+        # Release the lock to allow another thread to increment the count
+        with connection_lock:
+            connection_count -= 1
+
 # Function to gracefully handle signals
 def signal_handler(signal, frame):
     print("Received signal, exiting gracefully...")
@@ -88,7 +95,8 @@ def main():
             client_socket, addr = server_socket.accept()
             
             # Increment the connection count
-            connection_count += 1
+            with connection_lock:
+                connection_count += 1
             
             # Start a new thread to handle the connection
             t = threading.Thread(target=handle_connection, args=(client_socket, connection_count))
@@ -102,3 +110,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
