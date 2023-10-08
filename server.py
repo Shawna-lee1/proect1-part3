@@ -116,12 +116,19 @@ def main():
     except KeyboardInterrupt:
         print("Server terminated by user.")
     
-    finally:
+  finally:
+        # Close the server socket
         server_socket.close()
+
+        # Wait for all threads to finish before exiting
+        for thread in threading.enumerate():
+            if thread != threading.current_thread():
+                thread.join()
+
+        print("Server has exited gracefully.")
 
 if __name__ == "__main__":
     main()
-
 
 
 
